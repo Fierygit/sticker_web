@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件管理器 - Stickers</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Stickers 文件管理器</h1>
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <div class="upload-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7,10 12,15 17,10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </div>
+                        <div class="upload-text">
+                            <p class="upload-title">拖拽文件到这里上传</p>
+                            <p class="upload-subtitle">或者 <span class="upload-link">点击选择文件</span></p>
+                            <p class="upload-hint">支持图片、视频和GIF文件</p>
+                        </div>
+                    </div>
+                    <input type="file" id="fileInput" multiple accept="image/*,video/*,.gif" style="display: none;">
+                </div>
+                <div class="upload-actions">
+                    <button class="refresh-btn" onclick="refreshFiles()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23,4 23,10 17,10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                        刷新
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="tag-filter-section">
+            <h3>标签筛选</h3>
+            <div id="tagFilter">
+                <!-- 标签筛选器将动态加载到这里 -->
+            </div>
+        </div>
+
+        <div class="file-grid" id="fileGrid">
+            <!-- 文件将动态加载到这里 -->
+        </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
