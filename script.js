@@ -1,12 +1,93 @@
 let files = [];
 let tags = [];
 let selectedTags = [];
+let selectedFiles = new Set();
+let currentSort = { by: 'modified', order: 'desc' };
 
 document.addEventListener('DOMContentLoaded', function() {
     loadFiles();
     loadTags();
     initUploadArea();
+    updateSortButtons();
 });
+
+function toggleSort(sortType) {
+    const btn = document.querySelector(`[data-sort="${sortType}"]`);
+    
+    if (currentSort.by === sortType) {
+        // 同一个排序类型：升序 -> 降序 -> 取消
+        if (currentSort.order === 'asc') {
+            currentSort.order = 'desc';
+        } else if (currentSort.order === 'desc') {
+            // 取消排序，回到默认
+            currentSort.by = 'modified';
+            currentSort.order = 'desc';
+        }
+    } else {
+        // 不同排序类型：直接设为升序
+        currentSort.by = sortType;
+        currentSort.order = 'asc';
+    }
+    
+    updateSortButtons();
+    renderFiles();
+}
+
+function updateSortButtons() {
+    // 重置所有按钮
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.classList.remove('active', 'asc', 'desc');
+        const icon = btn.querySelector('.sort-icon');
+        if (icon) {
+            icon.textContent = '-';
+        }
+    });
+    
+    // 设置当前激活的按钮
+    const activeBtn = document.querySelector(`[data-sort="${currentSort.by}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active', currentSort.order);
+        const icon = activeBtn.querySelector('.sort-icon');
+        if (icon) {
+            icon.textContent = currentSort.order === 'asc' ? '↑' : '↓';
+        }
+    }
+}
+
+function sortFiles(files) {
+    return files.sort((a, b) => {
+        let aValue, bValue;
+        
+        switch (currentSort.by) {
+            case 'name':
+                aValue = a.name.toLowerCase();
+                bValue = b.name.toLowerCase();
+                break;
+            case 'size':
+                aValue = a.size;
+                bValue = b.size;
+                break;
+            case 'modified':
+            default:
+                aValue = a.modified;
+                bValue = b.modified;
+                break;
+        }
+        
+        let result;
+        if (typeof aValue === 'string') {
+            result = aValue.localeCompare(bValue);
+        } else {
+            result = aValue - bValue;
+        }
+        
+        // 置顶文件始终在前面
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        
+        return currentSort.order === 'asc' ? result : -result;
+    });
+}
 
 async function loadFiles() {
     try {
@@ -32,10 +113,30 @@ function renderFiles() {
     const grid = document.getElementById('fileGrid');
     grid.innerHTML = '';
 
-    files.forEach(file => {
+    let filteredFiles = files;
+    
+    // 标签筛选
+    if (selectedTags.length > 0) {
+        filteredFiles = files.filter(file => {
+            const fileTags = file.tags || [];
+            return selectedTags.every(tag => fileTags.includes(tag));
+        });
+    }
+    
+    // 排序
+    filteredFiles = sortFiles(filteredFiles);
+
+    if (filteredFiles.length === 0) {
+        grid.innerHTML = '<div class="no-files">没有找到匹配的文件</div>';
+        return;
+    }
+
+    filteredFiles.forEach(file => {
         const fileItem = createFileItem(file);
         grid.appendChild(fileItem);
     });
+    
+    updateSelectedCount();
 }
 
 function renderTagFilter() {
@@ -69,7 +170,7 @@ function renderTagFilter() {
 
 function createFileItem(file) {
     const div = document.createElement('div');
-    div.className = `file-item ${file.pinned ? 'pinned' : ''}`;
+    div.className = `file-item ${file.pinned ? 'pinned' : ''} ${selectedFiles.has(file.name) ? 'selected' : ''}`;
 
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
     const isVideo = /\.(mp4|webm|ogg)$/i.test(file.name);
@@ -87,14 +188,13 @@ function createFileItem(file) {
                    </div>`;
     }
 
-    // 显示文件标签
     const fileTags = file.tags || [];
     const tagsHtml = fileTags.map(tag => `<span class="file-tag">${tag}</span>`).join('');
-
-    // 置顶标识
     const pinnedBadge = file.pinned ? '<div class="pinned-badge">📌</div>' : '';
 
     div.innerHTML = `
+        <input type="checkbox" class="file-checkbox" ${selectedFiles.has(file.name) ? 'checked' : ''} 
+               onchange="toggleFileSelection('${file.name}')">
         ${pinnedBadge}
         ${preview}
         <div class="file-name">${file.name}</div>
@@ -696,3 +796,143 @@ function showToast(message, type = 'success') {
         }, 300);
     }, 3000);
 }
+
+function toggleFileSelection(filename) {
+    if (selectedFiles.has(filename)) {
+        selectedFiles.delete(filename);
+    } else {
+        selectedFiles.add(filename);
+    }
+    
+    // 更新文件项的选中状态
+    const fileItem = document.querySelector(`input[onchange="toggleFileSelection('${filename}')"]`).closest('.file-item');
+    fileItem.classList.toggle('selected', selectedFiles.has(filename));
+    
+    updateSelectedCount();
+}
+
+function toggleSelectAll() {
+    const visibleFiles = document.querySelectorAll('.file-item:not(.no-files)');
+    const allSelected = visibleFiles.length > 0 && selectedFiles.size === visibleFiles.length;
+    
+    if (allSelected) {
+        // 取消全选
+        selectedFiles.clear();
+        visibleFiles.forEach(item => {
+            item.classList.remove('selected');
+            const checkbox = item.querySelector('.file-checkbox');
+            if (checkbox) checkbox.checked = false;
+        });
+    } else {
+        // 全选
+        visibleFiles.forEach(item => {
+            const checkbox = item.querySelector('.file-checkbox');
+            if (checkbox) {
+                const filename = checkbox.getAttribute('onchange').match(/'([^']+)'/)[1];
+                selectedFiles.add(filename);
+                item.classList.add('selected');
+                checkbox.checked = true;
+            }
+        });
+    }
+    
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const count = selectedFiles.size;
+    document.getElementById('selectedCount').textContent = `已选择: ${count}`;
+    document.getElementById('deleteSelectedBtn').disabled = count === 0;
+    
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const visibleFiles = document.querySelectorAll('.file-item:not(.no-files)');
+    selectAllBtn.textContent = (count > 0 && count === visibleFiles.length) ? '取消全选' : '全选';
+}
+
+async function deleteSelected() {
+    if (selectedFiles.size === 0) return;
+    
+    const password = prompt('请输入删除密码:');
+    if (!password) return;
+    
+    const fileList = Array.from(selectedFiles).join('\n');
+    if (!confirm(`确定要删除以下 ${selectedFiles.size} 个文件吗？\n\n${fileList}`)) {
+        return;
+    }
+
+    const deletePromises = Array.from(selectedFiles).map(async (filename) => {
+        try {
+            const response = await fetch(`/api/delete/${encodeURIComponent(filename)}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+            
+            if (response.ok) {
+                return { filename, success: true };
+            } else {
+                const error = await response.json();
+                return { filename, success: false, error: error.detail };
+            }
+        } catch (error) {
+            return { filename, success: false, error: error.message };
+        }
+    });
+
+    const results = await Promise.all(deletePromises);
+    const successful = results.filter(r => r.success);
+    const failed = results.filter(r => !r.success);
+
+    if (successful.length > 0) {
+        showToast(`成功删除 ${successful.length} 个文件`);
+        selectedFiles.clear();
+        await loadFiles();
+    }
+
+    if (failed.length > 0) {
+        const failedList = failed.map(f => `${f.filename}: ${f.error}`).join('\n');
+        alert(`删除失败的文件:\n${failedList}`);
+    }
+}
+
+function showUploadModal() {
+    const modal = document.getElementById('uploadModal');
+    if (modal) {
+        modal.style.display = 'block';
+    } else {
+        console.error('找不到上传弹窗元素');
+    }
+}
+
+function closeUploadModal() {
+    const modal = document.getElementById('uploadModal');
+    if (modal) {
+        modal.style.display = 'none';
+        // 重置上传状态
+        const progressDiv = document.getElementById('uploadProgress');
+        const fileInput = document.getElementById('fileInput');
+        if (progressDiv) progressDiv.style.display = 'none';
+        if (fileInput) fileInput.value = '';
+    }
+}
+
+// 确保DOM加载完成后绑定事件
+document.addEventListener('DOMContentLoaded', function() {
+    // 绑定上传弹窗背景点击事件
+    const uploadModal = document.getElementById('uploadModal');
+    if (uploadModal) {
+        uploadModal.onclick = (e) => {
+            if (e.target === uploadModal) {
+                closeUploadModal();
+            }
+        };
+    }
+    
+    // 重新初始化上传区域
+    initUploadArea();
+    
+    // 其他初始化
+    loadFiles();
+    loadTags();
+    updateSortButtons();
+});

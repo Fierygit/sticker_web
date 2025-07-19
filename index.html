@@ -10,40 +10,94 @@
     <div class="container">
         <header>
             <h1>Stickers 文件管理器</h1>
-            <div class="upload-section">
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-content">
-                        <div class="upload-icon">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="7,10 12,15 17,10"></polyline>
-                                <line x1="12" y1="15" x2="12" y2="3"></line>
-                            </svg>
-                        </div>
-                        <div class="upload-text">
-                            <p class="upload-title">拖拽文件到这里上传</p>
-                            <p class="upload-subtitle">或者 <span class="upload-link">点击选择文件</span></p>
-                            <p class="upload-hint">支持图片、视频和GIF文件</p>
-                        </div>
-                    </div>
-                    <input type="file" id="fileInput" multiple accept="image/*,video/*,.gif" style="display: none;">
-                </div>
-                <div class="upload-actions">
-                    <button class="refresh-btn" onclick="refreshFiles()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23,4 23,10 17,10"></polyline>
-                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                        </svg>
-                        刷新
-                    </button>
-                </div>
+            <div class="header-actions">
+                <button class="upload-btn" onclick="showUploadModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7,10 12,15 17,10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    上传文件
+                </button>
+                <button class="refresh-btn" onclick="refreshFiles()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23,4 23,10 17,10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    刷新
+                </button>
             </div>
         </header>
+
+        <!-- 上传弹窗 -->
+        <div id="uploadModal" class="upload-modal">
+            <div class="upload-modal-content">
+                <div class="upload-modal-header">
+                    <h3>上传文件</h3>
+                    <button class="close-btn" onclick="closeUploadModal()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="upload-modal-body">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-content">
+                            <div class="upload-icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7,10 12,15 17,10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                            </div>
+                            <div class="upload-text">
+                                <p class="upload-title">拖拽文件到这里上传</p>
+                                <p class="upload-subtitle">或者 <span class="upload-link">点击选择文件</span></p>
+                                <p class="upload-hint">支持图片、视频和GIF文件</p>
+                            </div>
+                        </div>
+                        <input type="file" id="fileInput" multiple accept="image/*,video/*,.gif" style="display: none;">
+                    </div>
+                    <div id="uploadProgress" class="upload-progress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                        <div class="progress-text">上传中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="tag-filter-section">
             <h3>标签筛选</h3>
             <div id="tagFilter">
                 <!-- 标签筛选器将动态加载到这里 -->
+            </div>
+        </div>
+
+        <div class="sort-section">
+            <h3>排序和操作</h3>
+            <div class="sort-controls">
+                <div class="sort-options">
+                    <button class="sort-btn active desc" data-sort="modified" onclick="toggleSort('modified')">
+                        <span>修改时间</span>
+                        <span class="sort-icon">↓</span>
+                    </button>
+                    <button class="sort-btn" data-sort="name" onclick="toggleSort('name')">
+                        <span>文件名</span>
+                        <span class="sort-icon">-</span>
+                    </button>
+                    <button class="sort-btn" data-sort="size" onclick="toggleSort('size')">
+                        <span>文件大小</span>
+                        <span class="sort-icon">-</span>
+                    </button>
+                </div>
+                <div class="batch-operations">
+                    <button id="selectAllBtn" onclick="toggleSelectAll()">全选</button>
+                    <button id="deleteSelectedBtn" onclick="deleteSelected()" disabled>删除选中</button>
+                    <span id="selectedCount">已选择: 0</span>
+                </div>
             </div>
         </div>
 
