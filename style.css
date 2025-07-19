@@ -126,8 +126,8 @@ header h1 {
 /* 文件网格优化 */
 .file-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
     padding: 20px 0;
 }
 
@@ -839,6 +839,41 @@ header h1 {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+    .file-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+        padding: 15px 0;
+    }
+    
+    .file-item {
+        padding: 10px;
+    }
+    
+    .file-preview {
+        height: 100px;
+        object-fit: cover;
+    }
+    
+    .file-name {
+        font-size: 12px;
+        margin-bottom: 3px;
+    }
+    
+    .file-size {
+        font-size: 11px;
+        margin-bottom: 8px;
+    }
+    
+    .file-actions {
+        gap: 3px;
+    }
+    
+    .file-actions button {
+        padding: 3px 6px;
+        font-size: 10px;
+        min-width: 35px;
+    }
+    
     .upload-section {
         flex-direction: column;
         gap: 15px;
@@ -846,6 +881,7 @@ header h1 {
     
     .upload-area {
         min-height: 100px;
+        padding: 20px 15px;
     }
     
     .upload-content {
@@ -878,6 +914,22 @@ header h1 {
     
     .toast.show {
         transform: translateY(0);
+    }
+}
+
+/* 更小屏幕优化 */
+@media (max-width: 480px) {
+    .file-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+    }
+    
+    .file-preview {
+        height: 80px;
+    }
+    
+    .file-item {
+        padding: 8px;
     }
 }
 
