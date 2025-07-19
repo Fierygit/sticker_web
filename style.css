@@ -839,53 +839,83 @@ header h1 {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-    .file-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 10px;
-        padding: 15px 0;
-    }
-    
-    .file-item {
+    .container {
         padding: 10px;
     }
     
+    .file-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        padding: 10px 0;
+    }
+    
+    .file-item {
+        padding: 8px;
+    }
+    
     .file-preview {
-        height: 100px;
+        width: 100%;
+        height: 0;
+        padding-bottom: 100%;
+        position: relative;
+        overflow: hidden;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        background: #f5f5f5;
+    }
+    
+    .file-preview img,
+    .file-preview video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
         object-fit: cover;
     }
     
     .file-name {
-        font-size: 12px;
+        font-size: 11px;
         margin-bottom: 3px;
+        line-height: 1.2;
+        max-height: 2.4em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
     }
     
     .file-size {
-        font-size: 11px;
-        margin-bottom: 8px;
+        font-size: 10px;
+        margin-bottom: 6px;
+    }
+    
+    .file-tags {
+        margin-bottom: 6px;
+        min-height: 16px;
+    }
+    
+    .file-tag {
+        font-size: 9px;
+        padding: 1px 4px;
+        margin: 1px;
     }
     
     .file-actions {
-        gap: 3px;
+        gap: 2px;
+        flex-direction: column;
     }
     
     .file-actions button {
-        padding: 3px 6px;
-        font-size: 10px;
-        min-width: 35px;
-    }
-    
-    .upload-section {
-        flex-direction: column;
-        gap: 15px;
+        padding: 4px 6px;
+        font-size: 9px;
+        min-width: auto;
+        width: 100%;
     }
     
     .upload-area {
-        min-height: 100px;
-        padding: 20px 15px;
-    }
-    
-    .upload-content {
-        padding: 20px 15px;
+        padding: 20px 10px;
     }
     
     .upload-title {
@@ -893,43 +923,35 @@ header h1 {
     }
     
     .upload-subtitle {
-        font-size: 13px;
+        font-size: 12px;
     }
     
-    .upload-actions {
-        width: 100%;
-    }
-    
-    .refresh-btn {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .toast {
-        right: 10px;
-        left: 10px;
-        min-width: auto;
-        transform: translateY(-100%);
-    }
-    
-    .toast.show {
-        transform: translateY(0);
+    .upload-hint {
+        font-size: 11px;
     }
 }
 
 /* 更小屏幕优化 */
 @media (max-width: 480px) {
     .file-grid {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-        gap: 8px;
-    }
-    
-    .file-preview {
-        height: 80px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
     }
     
     .file-item {
-        padding: 8px;
+        padding: 6px;
+    }
+    
+    .file-preview {
+        margin-bottom: 6px;
+    }
+    
+    .file-name {
+        font-size: 10px;
+    }
+    
+    .file-size {
+        font-size: 9px;
     }
 }
 
