@@ -1,7 +1,7 @@
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 import os
 import shutil
 from pathlib import Path
@@ -9,6 +9,9 @@ from typing import List
 import uvicorn
 import json
 import configparser
+from datetime import datetime, timedelta
+import hashlib
+import mimetypes
 
 app = FastAPI()
 
@@ -104,7 +107,26 @@ def remove_file_from_tags(filename):
         del tags_data['files'][filename]
     if filename in tags_data['pinned']:
         tags_data['pinned'].remove(filename)
-    save_tags_data(tags_data)
+    
+    return save_tags_data(tags_data)
+
+def generate_etag(file_path):
+    """生成ETag"""
+    stat = file_path.stat()
+    return f'"{stat.st_mtime}-{stat.st_size}"'
+
+def get_cache_headers(file_path, cache_duration=86400):
+    """获取缓存头"""
+    stat = file_path.stat()
+    last_modified = datetime.fromtimestamp(stat.st_mtime)
+    expires = datetime.utcnow() + timedelta(seconds=cache_duration)
+    
+    return {
+        "Cache-Control": f"public, max-age={cache_duration}, immutable",
+        "ETag": generate_etag(file_path),
+        "Last-Modified": last_modified.strftime('%a, %d %b %Y %H:%M:%S GMT'),
+        "Expires": expires.strftime('%a, %d %b %Y %H:%M:%S GMT'),
+    }
 
 @app.get("/api/files")
 async def get_files():
@@ -259,6 +281,65 @@ async def toggle_pin_file(request: Request):
 
 # 静态文件服务 - API路由必须在静态文件挂载之前
 app.mount("/stickers", StaticFiles(directory=STICKERS_DIR), name="stickers")
+
+@app.get("/stickers/{filename}")
+async def get_file(filename: str, request: Request):
+    """获取文件，支持缓存和条件请求"""
+    file_path = Path(STICKERS_DIR) / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    # 生成ETag
+    etag = generate_etag(file_path)
+    last_modified = datetime.fromtimestamp(file_path.stat().st_mtime)
+    
+    # 检查If-None-Match (ETag)
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match and if_none_match == etag:
+        return Response(status_code=304)
+    
+    # 检查If-Modified-Since
+    if_modified_since = request.headers.get("if-modified-since")
+    if if_modified_since:
+        try:
+            client_time = datetime.strptime(if_modified_since, '%a, %d %b %Y %H:%M:%S GMT')
+            if last_modified <= client_time:
+                return Response(status_code=304)
+        except ValueError:
+            pass
+    
+    # 设置缓存头（图片缓存7天，其他文件1天）
+    is_image = filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp'))
+    cache_duration = 604800 if is_image else 86400  # 7天 vs 1天
+    
+    headers = get_cache_headers(file_path, cache_duration)
+    
+    # 获取MIME类型
+    content_type, _ = mimetypes.guess_type(str(file_path))
+    if content_type:
+        headers["Content-Type"] = content_type
+    
+    return FileResponse(file_path, headers=headers)
+
+@app.middleware("http")
+async def add_cache_headers(request: Request, call_next):
+    """添加全局缓存中间件"""
+    response = await call_next(request)
+    
+    # 为静态资源添加缓存头
+    if request.url.path.startswith("/stickers/"):
+        # 文件路径已经在get_file中处理
+        pass
+    elif request.url.path.endswith(('.css', '.js', '.ico')):
+        # 静态资源缓存1小时
+        response.headers["Cache-Control"] = "public, max-age=3600"
+    elif request.url.path == "/" or request.url.path.endswith('.html'):
+        # HTML文件不缓存，确保更新
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    
+    return response
 
 # 使用子应用来避免路由冲突
 static_app = StaticFiles(directory=".", html=True)

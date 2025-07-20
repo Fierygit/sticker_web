@@ -1189,3 +1189,61 @@ button:hover {
 .sort-btn.active .sort-icon {
     color: white;
 }
+
+.cache-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.cache-btn:hover {
+    background: #c82333;
+}
+
+/* 缓存状态指示器 */
+.cache-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(40, 167, 69, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 1000;
+    display: none;
+    animation: slideUp 0.3s ease;
+}
+
+.cache-indicator.show {
+    display: block;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* 已缓存文件的视觉提示 */
+.file-item.cached::after {
+    content: '💾';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 12px;
+    opacity: 0.7;
+}

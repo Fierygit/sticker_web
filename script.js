@@ -4,6 +4,338 @@ let selectedTags = [];
 let selectedFiles = new Set();
 let currentSort = { by: 'modified', order: 'desc' };
 
+// 缓存管理器
+class CacheManager {
+    constructor() {
+        this.memoryCache = new Map();
+        this.maxCacheSize = 100; // 最多缓存100个文件信息
+        this.cacheVersion = '1.0';
+        this.init();
+    }
+
+    init() {
+        // 检查浏览器支持
+        this.hasLocalStorage = this.checkLocalStorage();
+        this.hasIndexedDB = this.checkIndexedDB();
+        
+        // 清理过期缓存
+        this.cleanExpiredCache();
+    }
+
+    checkLocalStorage() {
+        try {
+            localStorage.setItem('test', 'test');
+            localStorage.removeItem('test');
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    checkIndexedDB() {
+        return 'indexedDB' in window;
+    }
+
+    // 生成缓存键
+    getCacheKey(filename) {
+        return `sticker_${filename}_${this.cacheVersion}`;
+    }
+
+    // 检查文件是否已缓存
+    isCached(filename) {
+        const cacheKey = this.getCacheKey(filename);
+        
+        // 检查内存缓存
+        if (this.memoryCache.has(cacheKey)) {
+            return true;
+        }
+        
+        // 检查localStorage
+        if (this.hasLocalStorage) {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                try {
+                    const data = JSON.parse(cached);
+                    if (data.expires > Date.now()) {
+                        return true;
+                    } else {
+                        localStorage.removeItem(cacheKey);
+                    }
+                } catch (e) {
+                    localStorage.removeItem(cacheKey);
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    // 添加到缓存
+    addToCache(filename, data) {
+        const cacheKey = this.getCacheKey(filename);
+        const expires = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7天过期
+        
+        const cacheData = {
+            data: data,
+            expires: expires,
+            timestamp: Date.now()
+        };
+
+        // 内存缓存
+        this.memoryCache.set(cacheKey, cacheData);
+        
+        // 限制内存缓存大小
+        if (this.memoryCache.size > this.maxCacheSize) {
+            const firstKey = this.memoryCache.keys().next().value;
+            this.memoryCache.delete(firstKey);
+        }
+
+        // localStorage缓存（仅缓存文件信息，不缓存二进制数据）
+        if (this.hasLocalStorage && typeof data === 'object') {
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            } catch (e) {
+                // localStorage满了，清理一些旧数据
+                this.cleanOldCache();
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                } catch (e2) {
+                    console.warn('无法保存到localStorage:', e2);
+                }
+            }
+        }
+    }
+
+    // 从缓存获取
+    getFromCache(filename) {
+        const cacheKey = this.getCacheKey(filename);
+        
+        // 先检查内存缓存
+        if (this.memoryCache.has(cacheKey)) {
+            const cached = this.memoryCache.get(cacheKey);
+            if (cached.expires > Date.now()) {
+                return cached.data;
+            } else {
+                this.memoryCache.delete(cacheKey);
+            }
+        }
+        
+        // 检查localStorage
+        if (this.hasLocalStorage) {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                try {
+                    const data = JSON.parse(cached);
+                    if (data.expires > Date.now()) {
+                        // 重新加入内存缓存
+                        this.memoryCache.set(cacheKey, data);
+                        return data.data;
+                    } else {
+                        localStorage.removeItem(cacheKey);
+                    }
+                } catch (e) {
+                    localStorage.removeItem(cacheKey);
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    // 清理过期缓存
+    cleanExpiredCache() {
+        if (!this.hasLocalStorage) return;
+        
+        const now = Date.now();
+        const keysToRemove = [];
+        
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('sticker_')) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    if (data.expires <= now) {
+                        keysToRemove.push(key);
+                    }
+                } catch (e) {
+                    keysToRemove.push(key);
+                }
+            }
+        }
+        
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+    }
+
+    // 清理旧缓存
+    cleanOldCache() {
+        if (!this.hasLocalStorage) return;
+        
+        const cacheItems = [];
+        
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('sticker_')) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    cacheItems.push({ key, timestamp: data.timestamp });
+                } catch (e) {
+                    localStorage.removeItem(key);
+                }
+            }
+        }
+        
+        // 按时间排序，删除最旧的50%
+        cacheItems.sort((a, b) => a.timestamp - b.timestamp);
+        const toRemove = cacheItems.slice(0, Math.floor(cacheItems.length / 2));
+        toRemove.forEach(item => localStorage.removeItem(item.key));
+    }
+
+    // 清空所有缓存
+    clearCache() {
+        this.memoryCache.clear();
+        
+        if (this.hasLocalStorage) {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('sticker_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+        }
+    }
+}
+
+// 全局缓存管理器
+const cacheManager = new CacheManager();
+
+// 增强的懒加载器，支持缓存
+class LazyImageLoader {
+    constructor() {
+        this.observer = null;
+        this.loadedImages = new Set();
+        this.loadingImages = new Set();
+        this.init();
+    }
+
+    init() {
+        this.observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    this.loadImage(entry.target);
+                }
+            });
+        }, {
+            rootMargin: '100px 0px',
+            threshold: 0.01
+        });
+    }
+
+    loadImage(element) {
+        const src = element.getAttribute('data-src');
+        const filename = element.getAttribute('data-filename');
+        
+        if (!src || this.loadedImages.has(filename) || this.loadingImages.has(filename)) {
+            return;
+        }
+
+        this.loadingImages.add(filename);
+        element.classList.add('loading');
+        
+        if (element.tagName === 'IMG') {
+            // 检查缓存
+            if (cacheManager.isCached(filename)) {
+                // 直接使用缓存的URL（浏览器HTTP缓存）
+                element.src = src;
+                element.classList.remove('loading', 'lazy-load');
+                element.classList.add('loaded');
+                this.loadedImages.add(filename);
+                this.loadingImages.delete(filename);
+                this.observer.unobserve(element);
+                return;
+            }
+
+            const img = new Image();
+            img.onload = () => {
+                element.src = src;
+                element.classList.remove('loading', 'lazy-load');
+                element.classList.add('loaded');
+                this.loadedImages.add(filename);
+                this.loadingImages.delete(filename);
+                
+                // 添加到缓存
+                cacheManager.addToCache(filename, { loaded: true, url: src });
+                
+                this.observer.unobserve(element);
+            };
+            img.onerror = () => {
+                element.classList.remove('loading');
+                element.classList.add('error');
+                this.loadingImages.delete(filename);
+                this.observer.unobserve(element);
+            };
+            img.src = src;
+        } else if (element.tagName === 'VIDEO') {
+            const source = element.querySelector('source');
+            if (source) {
+                source.src = src;
+                element.load();
+                element.classList.remove('loading', 'lazy-load');
+                element.classList.add('loaded');
+                this.loadedImages.add(filename);
+                this.loadingImages.delete(filename);
+                cacheManager.addToCache(filename, { loaded: true, url: src });
+                this.observer.unobserve(element);
+            }
+        }
+    }
+
+    observe(element) {
+        this.observer.observe(element);
+    }
+}
+
+// 预加载函数，利用缓存
+function preloadPriorityFiles() {
+    const priorityFiles = files.filter(file => file.pinned).slice(0, 5);
+    priorityFiles.forEach(file => {
+        if (/\.(jpg|jpeg|png|gif|webp)$/i.test(file.name)) {
+            // 检查是否已缓存
+            if (!cacheManager.isCached(file.name)) {
+                const img = new Image();
+                img.onload = () => {
+                    cacheManager.addToCache(file.name, { loaded: true, url: img.src });
+                };
+                img.src = `/stickers/${file.name}`;
+            }
+        }
+    });
+}
+
+// 添加缓存控制面板
+function addCacheControls() {
+    const header = document.querySelector('.header-actions');
+    if (header) {
+        const cacheBtn = document.createElement('button');
+        cacheBtn.className = 'cache-btn';
+        cacheBtn.innerHTML = '🗑️ 清理缓存';
+        cacheBtn.onclick = () => {
+            if (confirm('确定要清理所有缓存吗？这将重新下载所有图片。')) {
+                cacheManager.clearCache();
+                location.reload();
+            }
+        };
+        header.appendChild(cacheBtn);
+    }
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    addCacheControls();
+    setTimeout(preloadPriorityFiles, 2000);
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     loadFiles();
     loadTags();
